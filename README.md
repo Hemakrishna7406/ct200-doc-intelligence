@@ -162,6 +162,8 @@ PDF ──▶ extract ──▶ classify ──▶ hierarchy ──▶ ingest �
 See [`docs/APPROACH.md`](docs/APPROACH.md) for the data model, the parsing
 decisions behind each irregularity, the version-matching strategy and its
 failure modes, the LLM prompt/validation design, and the required decision log.
+It is also published as a shareable Google Doc:
+https://docs.google.com/document/d/1Z6xRZHwNmo3MTsoQuLp1lY-JuHTR4O7gtq2w6eyDd5E/edit
 
 ---
 

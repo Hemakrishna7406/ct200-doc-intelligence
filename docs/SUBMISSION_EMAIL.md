@@ -14,7 +14,8 @@ Thank you for the opportunity to attempt the Tri9T AI / AffineSurge AI
 Engineering Internship technical assignment. Please find my submission below.
 
 **GitHub repository:** [repo URL]
-**Approach document:** [repo URL]/blob/main/docs/APPROACH.md
+**Approach document (repo):** [repo URL]/blob/main/docs/APPROACH.md
+**Approach document (Google Doc):** https://docs.google.com/document/d/1Z6xRZHwNmo3MTsoQuLp1lY-JuHTR4O7gtq2w6eyDd5E/edit
 
 **What I built**
 
