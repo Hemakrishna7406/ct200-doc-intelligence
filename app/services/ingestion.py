@@ -29,10 +29,12 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.errors import ConflictError, IngestError
 from app.models import Document, DocumentVersion, Node, NodeVersion
 from app.parsing.extract import extract
 from app.parsing.hierarchy import ParsedNode, node_content_hash, parse
 from app.schemas import Anomaly, IngestResult
+from app.security import resolve_document_path
 from app.textutil import normalize_text
 
 
@@ -58,13 +60,28 @@ def _latest_node_version(db: Session, node_id: int) -> NodeVersion | None:
     )
 
 
+def _latest_versions(db: Session, document_id: int) -> dict[int, NodeVersion]:
+    """Latest NodeVersion per logical node, in ONE query (avoids N+1)."""
+    rows = db.scalars(
+        select(NodeVersion)
+        .join(Node, Node.id == NodeVersion.node_id)
+        .where(Node.document_id == document_id)
+        .order_by(NodeVersion.node_id, NodeVersion.document_version_id)
+    )
+    latest: dict[int, NodeVersion] = {}
+    for nv in rows:
+        latest[nv.node_id] = nv  # ascending order, so the last write wins
+    return latest
+
+
 def _build_index(db: Session, document_id: int):
     nodes = list(db.scalars(select(Node).where(Node.document_id == document_id)))
+    latest = _latest_versions(db, document_id)
     by_key: dict[str, Node] = {n.logical_key: n for n in nodes}
     by_parent_title: dict[tuple[str | None, str], Node] = {}
     by_title: dict[str, list[Node]] = {}
     for n in nodes:
-        nv = _latest_node_version(db, n.id)
+        nv = latest.get(n.id)
         if nv is None:
             continue
         title = normalize_text(nv.heading).lower()
@@ -101,6 +118,14 @@ def ingest(
     version_no: int | None = None,
     notes: str | None = None,
 ) -> IngestResult:
+    if not document_name or not document_name.strip():
+        raise IngestError("document_name must be a non-empty string")
+    if version_no is not None and version_no < 1:
+        raise IngestError("version_no must be >= 1")
+
+    # confine reads to the configured document root (see app/security.py)
+    resolved = resolve_document_path(path)
+
     doc = get_or_create_document(db, document_name)
 
     existing_versions = list(
@@ -110,9 +135,19 @@ def ingest(
     )
     if version_no is None:
         version_no = max((v.version_no for v in existing_versions), default=0) + 1
+    elif any(v.version_no == version_no for v in existing_versions):
+        raise ConflictError(
+            f"document {document_name!r} already has a version {version_no}"
+        )
 
-    extraction = extract(path)
-    parsed = parse(extraction)
+    try:
+        extraction = extract(str(resolved))
+        parsed = parse(extraction)
+    except Exception as exc:  # pymupdf raises a variety of errors on bad input
+        raise IngestError(f"could not parse PDF {resolved.name!r}: {exc}") from exc
+
+    if not parsed.nodes:
+        raise IngestError(f"no content extracted from {resolved.name!r}")
 
     for v in existing_versions:
         v.is_latest = False
@@ -120,8 +155,8 @@ def ingest(
     dv = DocumentVersion(
         document_id=doc.id,
         version_no=version_no,
-        source_filename=Path(path).name,
-        source_hash=_source_hash(path),
+        source_filename=resolved.name,
+        source_hash=_source_hash(str(resolved)),
         page_count=extraction.page_count,
         is_latest=True,
         notes=notes,
