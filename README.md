@@ -190,6 +190,7 @@ app/
     documents.py nodes.py selections.py generations.py
 data/                     ct200_manual.pdf, ct200_manual_v2.pdf
 docs/APPROACH.md          approach document + decision log
+docs/SUBMISSION_EMAIL.md  draft submission email (deliverable #4)
 scripts/                  e2e_demo.py, smoke_test.py, api_examples.sh
 tests/                    parser, versioning, staleness, llm, api
 ```

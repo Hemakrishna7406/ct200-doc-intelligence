@@ -351,11 +351,11 @@ as body text and produce a single flat node; nothing in the output would say
 * **8 parser unit tests** (`tests/test_parser_irregularities.py`), one per
   irregularity — including the two the brief names explicitly (duplicate heading
   ⇒ two distinct nodes with correct parents; out-of-order sections reordered).
-* **6 versioning tests**, including "unchanged node keeps its id" and
+* **5 versioning tests**, including "unchanged node keeps its id" and
   "version-pinned selection still resolves to v1 text after v2 is ingested".
-* **6 staleness tests**, including the container/table case and idempotency.
+* **5 staleness tests**, including the container/table case and idempotency.
 * **6 LLM-validation tests**, including the malformed-output path.
-* **2 API tests** driving the full v1 → v2 → staleness → retrieval flow.
+* **3 API tests** driving the full v1 → v2 → staleness → retrieval flow.
 * Manual cross-check: the v1/v2 text diff was read by hand and the parser's
   reported changes reconciled against it.
 
