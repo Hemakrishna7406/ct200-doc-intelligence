@@ -8,12 +8,17 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas import GenerationOut, GenerateRequest, StalenessOut
-from app.services.generation import GenerationError, generate
+from app.schemas import (
+    GenerateRequest,
+    GenerationListItem,
+    GenerationOut,
+    StalenessOut,
+)
+from app.services.generation import generate
 from app.services.staleness import check_generation
 from app.services.store import get_store
 
@@ -22,19 +27,18 @@ router = APIRouter(tags=["generations"])
 
 @router.post("/generations", response_model=GenerationOut)
 async def create_generation(req: GenerateRequest, db: Session = Depends(get_db)):
-    try:
-        rec = await generate(db, req.selection_id, force=req.force)
-    except GenerationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    return rec
+    # GenerationError is an AppError, handled globally as a clean 4xx
+    return await generate(db, req.selection_id, force=req.force)
 
 
-@router.get("/generations", response_model=list[GenerationOut])
+@router.get("/generations", response_model=list[GenerationListItem])
 def list_generations(
     selection_id: int | None = None,
     node_id: int | None = None,
+    limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
+    """Lightweight index of generations (no raw responses)."""
     store = get_store()
     records = store.all()
     if selection_id is not None:
@@ -47,7 +51,16 @@ def list_generations(
             if any(s.get("node_id") == node_id for s in r.get("sources", []))
         ]
     records.sort(key=lambda r: r.get("created_at", ""), reverse=True)
-    return records
+    return [
+        {
+            "generation_id": r["generation_id"],
+            "selection_id": r["selection_id"],
+            "status": r["status"],
+            "created_at": r["created_at"],
+            "test_case_count": len(r.get("test_cases", [])),
+        }
+        for r in records[:limit]
+    ]
 
 
 @router.get("/generations/{generation_id}", response_model=GenerationOut)

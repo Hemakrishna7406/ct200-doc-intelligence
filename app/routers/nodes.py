@@ -26,9 +26,10 @@ def search(
     document_id: int,
     q: str = Query(..., min_length=1),
     version: int | None = None,
+    limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
 ):
-    return browse.search_nodes(db, document_id, q, version)
+    return browse.search_nodes(db, document_id, q, version, limit=limit)
 
 
 @router.get("/nodes/{node_id}", response_model=NodeDetail)

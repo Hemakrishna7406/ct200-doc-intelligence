@@ -58,6 +58,13 @@ class DocumentVersionOut(BaseModel):
     notes: str | None = None
 
 
+class DocumentOut(BaseModel):
+    id: int
+    name: str
+    versions: list[int]
+    latest_version: int | None = None
+
+
 class IngestResult(BaseModel):
     document_id: int
     document_name: str
