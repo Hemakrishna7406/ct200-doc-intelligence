@@ -19,9 +19,9 @@ def test_full_versioning_and_staleness_flow(ingested):
     assert keys == ["1", "2", "3", "4", "5", "6", "7", "8"]
 
     # 2. node detail carries children + hash + table
-    n42 = [h for h in client.get(
+    n42 = next(h for h in client.get(
         f"/documents/{doc_id}/search", params={"q": "Error Codes"}
-    ).json() if h["logical_key"] == "4.2"][0]["node_id"]
+    ).json() if h["logical_key"] == "4.2")["node_id"]
     detail = client.get(f"/nodes/{n42}").json()
     assert detail["children"][0]["kind"] == "table"
     assert detail["content_hash"]
@@ -63,6 +63,6 @@ def test_full_versioning_and_staleness_flow(ingested):
 
 
 def test_selection_rejects_unknown_node(client, ingested):
-    _, doc_id = ingested
+    _, _doc_id = ingested
     r = client.post("/selections", json={"name": "bad", "node_ids": [999999]})
     assert r.status_code == 400

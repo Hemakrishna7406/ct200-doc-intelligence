@@ -65,7 +65,7 @@ def test_tables_are_extracted_and_kept_out_of_body_text():
     leak into the section body."""
     tables = [n for n in _result.nodes if n.kind == "table"]
     assert tables, "expected at least one table node"
-    spec = [t for t in tables if t.parent_key == "2.1"][0]
+    spec = next(t for t in tables if t.parent_key == "2.1")
     assert spec.table[0] == ["Parameter", "Value"]
     assert len(spec.table) >= 8
     assert "Oscillometric" not in _NODES["2.1"].body_text

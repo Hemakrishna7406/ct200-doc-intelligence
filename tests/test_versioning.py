@@ -12,7 +12,7 @@ def _node_id(client, doc_id, key):
 
 
 def test_v2_reingest_summary(ingested):
-    client, doc_id = ingested
+    client, _doc_id = ingested
     r = client.post(
         "/documents/ingest", json={"path": V2, "document_name": "CT-200 Manual"}
     )
@@ -58,7 +58,7 @@ def test_changed_sections_are_flagged(ingested):
     assert hits[0]["change_status"] == "modified"
     # a container whose table changed reports modified too
     ec = client.get(f"/documents/{doc_id}/search", params={"q": "Error Codes"}).json()
-    n42 = [h for h in ec if h["logical_key"] == "4.2"][0]["node_id"]
+    n42 = next(h for h in ec if h["logical_key"] == "4.2")["node_id"]
     ch = client.get(f"/nodes/{n42}/changes", params={"from": 1, "to": 2}).json()
     assert ch["status"] == "modified"
 
