@@ -17,6 +17,21 @@ from sqlalchemy.orm import Session
 from app.models import NodeVersion
 
 
+def node_version_text(nv: NodeVersion) -> str:
+    """Reconstruct the human-readable text of a node version (incl. tables).
+
+    Lives here (not in ``generation``) so the browse/generation layers can both
+    use it without a circular import.
+    """
+    parts = [nv.heading]
+    if nv.body_text:
+        parts.append(nv.body_text)
+    if nv.table_json:
+        for row in nv.table_json:
+            parts.append(" | ".join((c or "") for c in row))
+    return "\n".join(p for p in parts if p)
+
+
 def _sort_key(nv: NodeVersion):
     if nv.number:
         return (0, tuple(int(x) for x in nv.number.split(".")))

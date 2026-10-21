@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Node, NodeVersion
 from app.services.diffing import change_magnitude, diff_summary
-from app.services.generation import node_version_text
+from app.services.tree import node_version_text
 
 
 def _current_node_version(db: Session, node_id: int) -> NodeVersion | None:

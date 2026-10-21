@@ -7,14 +7,12 @@ from sqlalchemy.orm import Session
 
 from app.models import DocumentVersion, Node, NodeVersion
 from app.services.diffing import diff_summary, line_diff
-from app.services.tree import subtree_node_versions
+from app.services.tree import node_version_text, subtree_node_versions
 from app.textutil import normalize_text
 
 
 def _effective_text(db: Session, node_id: int, version_id: int) -> str:
     """Own text + all descendants' text — what a container really contains."""
-    from app.services.generation import node_version_text
-
     return "\n".join(
         node_version_text(nv)
         for nv in subtree_node_versions(db, node_id, version_id)
@@ -56,10 +54,14 @@ def _has_children(db: Session, node_id: int, version_id: int) -> bool:
 
 
 def _node_out(db: Session, nv: NodeVersion, version_id: int) -> dict:
+    # ``node_id`` is the stable identity used for version-pinning; ``logical_key``
+    # is the node's *number in this version* (falling back to the stable key for
+    # unnumbered nodes like the title and tables), so a renumbered section
+    # displays its current number while keeping its history.
     return {
         "node_id": nv.node_id,
         "node_version_id": nv.id,
-        "logical_key": nv.node.logical_key,
+        "logical_key": nv.number or nv.node.logical_key,
         "number": nv.number,
         "heading": nv.heading,
         "level": nv.level,
@@ -130,7 +132,7 @@ def get_node_detail(db: Session, node_id: int, version_no: int | None) -> dict |
 
 
 def search_nodes(
-    db: Session, document_id: int, q: str, version_no: int | None
+    db: Session, document_id: int, q: str, version_no: int | None, limit: int = 100
 ) -> list[dict]:
     dv = resolve_version(db, document_id, version_no)
     if dv is None:
@@ -145,7 +147,7 @@ def search_nodes(
         if needle in hay:
             hits.append(_node_out(db, nv, dv.id))
     hits.sort(key=lambda d: (d["level"], d["logical_key"]))
-    return hits
+    return hits[:limit]
 
 
 def node_changes(
