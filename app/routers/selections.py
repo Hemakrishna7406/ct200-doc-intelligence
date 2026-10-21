@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import NodeVersion, Selection
 from app.schemas import SelectionCreate, SelectionItemOut, SelectionOut
-from app.services.selection import SelectionError, create_selection
+from app.services.selection import create_selection
 
 router = APIRouter(tags=["selections"])
 
@@ -37,10 +37,8 @@ def _to_out(db: Session, sel: Selection) -> SelectionOut:
 
 @router.post("/selections", response_model=SelectionOut)
 def create(req: SelectionCreate, db: Session = Depends(get_db)):
-    try:
-        sel = create_selection(db, req.name, req.node_ids, req.version_no)
-    except SelectionError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    # SelectionError is an AppError -> clean 400 via the global handler
+    sel = create_selection(db, req.name, req.node_ids, req.version_no)
     return _to_out(db, sel)
 
 

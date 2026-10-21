@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     ocr_min_chars_per_page: int = 40
     ocr_dpi: int = 200
 
+    # --- security / ops ---
+    # Ingestion may only read files under this directory (see app/security.py).
+    document_root: str = "./data"
+    log_level: str = "INFO"
+    # Upper bound on rows returned by list/search endpoints.
+    max_page_size: int = 200
+
 
 @lru_cache
 def get_settings() -> Settings:

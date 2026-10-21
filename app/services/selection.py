@@ -10,12 +10,15 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.errors import AppError
 from app.models import DocumentVersion, Node, NodeVersion, Selection, SelectionItem
 from app.textutil import fingerprint
 
 
-class SelectionError(ValueError):
-    pass
+class SelectionError(AppError):
+    """A selection request that cannot be satisfied (bad ids, mixed documents)."""
+
+    status_code = 400
 
 
 def _resolve_version(db: Session, document_id: int, version_no: int | None) -> DocumentVersion:

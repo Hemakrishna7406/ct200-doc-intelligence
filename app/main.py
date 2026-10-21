@@ -8,11 +8,14 @@ from fastapi import FastAPI
 
 from app import __version__
 from app.database import init_db
+from app.errors import install_exception_handlers
+from app.logging_config import configure_logging
 from app.routers import documents, generations, nodes, selections
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
     init_db()
     yield
 
@@ -27,6 +30,8 @@ app = FastAPI(
     ),
     lifespan=lifespan,
 )
+
+install_exception_handlers(app)
 
 app.include_router(documents.router)
 app.include_router(nodes.router)

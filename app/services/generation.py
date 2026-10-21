@@ -13,28 +13,20 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.errors import AppError
 from app.llm import prompts
 from app.llm.base import LLMError
 from app.llm.providers import get_provider
 from app.models import NodeVersion, Selection
 from app.schemas import TestCaseSet
 from app.services.store import get_store
-from app.services.tree import subtree_node_versions
+from app.services.tree import node_version_text, subtree_node_versions
 
 
-class GenerationError(RuntimeError):
-    pass
+class GenerationError(AppError):
+    """A generation request that cannot be satisfied (bad selection, empty text)."""
 
-
-def node_version_text(nv: NodeVersion) -> str:
-    """Reconstruct the human-readable text of a node version (incl. tables)."""
-    parts = [nv.heading]
-    if nv.body_text:
-        parts.append(nv.body_text)
-    if nv.table_json:
-        for row in nv.table_json:
-            parts.append(" | ".join((c or "") for c in row))
-    return "\n".join(p for p in parts if p)
+    status_code = 400
 
 
 def _strip_json(raw: str) -> str:

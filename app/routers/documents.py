@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Document, DocumentVersion
-from app.schemas import DocumentVersionOut, IngestRequest, IngestResult
+from app.schemas import DocumentOut, DocumentVersionOut, IngestRequest, IngestResult
 from app.services.ingestion import ingest
 
 router = APIRouter(tags=["documents"])
@@ -16,20 +16,19 @@ router = APIRouter(tags=["documents"])
 
 @router.post("/documents/ingest", response_model=IngestResult)
 def ingest_document(req: IngestRequest, db: Session = Depends(get_db)) -> IngestResult:
-    try:
-        return ingest(
-            db,
-            path=req.path,
-            document_name=req.document_name,
-            version_no=req.version_no,
-            notes=req.notes,
-        )
-    except FileNotFoundError:
-        raise HTTPException(status_code=400, detail=f"file not found: {req.path}")
+    # validation / path-safety / parse failures raise AppError subclasses,
+    # which the global handlers turn into clean 4xx responses
+    return ingest(
+        db,
+        path=req.path,
+        document_name=req.document_name,
+        version_no=req.version_no,
+        notes=req.notes,
+    )
 
 
-@router.get("/documents", response_model=list[dict])
-def list_documents(db: Session = Depends(get_db)) -> list[dict]:
+@router.get("/documents", response_model=list[DocumentOut])
+def list_documents(db: Session = Depends(get_db)) -> list[DocumentOut]:
     docs = list(db.scalars(select(Document)))
     out = []
     for d in docs:
