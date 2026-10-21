@@ -1,5 +1,9 @@
 # CT-200 Document Intelligence
 
+[![CI](https://github.com/Hemakrishna7406/ct200-doc-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/Hemakrishna7406/ct200-doc-intelligence/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+
 A backend that turns the **CardioTrack CT-200 Home Blood Pressure Monitor** manual
 (PDF) into a browsable, versioned, structured tree; lets a user build
 version-pinned *selections*; generates QA test-case ideas from those selections
@@ -46,7 +50,10 @@ python scripts/smoke_test.py
 ### Run the tests
 
 ```bash
-pytest            # 27 tests: parser irregularities, versioning, staleness, LLM validation, API
+pip install -r requirements-dev.txt
+pytest                 # 50 tests
+make check             # ruff lint + pytest (what CI runs)
+make cov               # coverage report
 ```
 
 ---
@@ -99,13 +106,13 @@ curl -s localhost:8000/generations/<GENERATION_ID>/staleness
 | `GET`  | `/documents` | List documents + versions |
 | `GET`  | `/documents/{id}/versions` | List versions of a document |
 | `GET`  | `/documents/{id}/sections?version=` | Top-level sections (default: latest) |
-| `GET`  | `/documents/{id}/search?q=&version=` | Search headings + body |
+| `GET`  | `/documents/{id}/search?q=&version=&limit=` | Search headings + body |
 | `GET`  | `/nodes/{node_id}?version=` | Node detail: children, full text, hash |
 | `GET`  | `/nodes/{node_id}/changes?from=&to=` | Cross-version status + diff summary |
 | `POST` | `/selections` | Create a version-pinned selection |
 | `GET`  | `/selections/{id}` | Fetch a selection |
 | `POST` | `/generations` | Generate QA test cases from a selection |
-| `GET`  | `/generations?selection_id=&node_id=` | Retrieve generations |
+| `GET`  | `/generations?selection_id=&node_id=&limit=` | Retrieve generations (index) |
 | `GET`  | `/generations/{id}` | Fetch one generation |
 | `GET`  | `/generations/{id}/staleness` | Is it still valid? |
 
@@ -127,6 +134,9 @@ All variables are optional; see `.env.example`. The important ones:
 | `CT200_LLM_API_KEY` | — | Provider key |
 | `CT200_PROMPT_VERSION` | `v1` | Bump to invalidate generation caches |
 | `CT200_OCR_ENABLED` | `true` | Enable the OCR fallback for image-only pages |
+| `CT200_DOCUMENT_ROOT` | `./data` | **Ingestion may only read files under this directory** (path-traversal guard) |
+| `CT200_LOG_LEVEL` | `INFO` | Log verbosity |
+| `CT200_MAX_PAGE_SIZE` | `200` | Upper bound for list/search endpoints |
 
 **No API key needed to run.** The default `mock` provider returns deterministic,
 schema-valid output so the entire pipeline (including staleness) runs offline.
@@ -171,8 +181,11 @@ https://docs.google.com/document/d/1Z6xRZHwNmo3MTsoQuLp1lY-JuHTR4O7gtq2w6eyDd5E/
 
 ```
 app/
-  main.py                 FastAPI app + routers
+  main.py                 FastAPI app + routers + exception handlers
   config.py database.py models.py schemas.py textutil.py
+  errors.py               AppError types + global exception handlers
+  security.py             document-root confinement for ingestion
+  logging_config.py       logging setup
   parsing/
     ocr.py                OCR adapter (tesseract, optional)
     extract.py            PDF text/tables + OCR fallback
@@ -180,7 +193,7 @@ app/
   services/
     ingestion.py          parse -> persist + version matching
     browse.py             read queries (sections, search, changes)
-    tree.py               subtree/effective-content helpers
+    tree.py               subtree / effective-content / node text helpers
     selection.py          version-pinned selections
     generation.py         context assembly, validation, retries, idempotency
     staleness.py          impact detection
@@ -194,8 +207,25 @@ data/                     ct200_manual.pdf, ct200_manual_v2.pdf
 docs/APPROACH.md          approach document + decision log
 docs/SUBMISSION_EMAIL.md  draft submission email (deliverable #4)
 scripts/                  e2e_demo.py, smoke_test.py, api_examples.sh
-tests/                    parser, versioning, staleness, llm, api
+tests/                    50 tests: parser, tree, versioning, matching,
+                          staleness, removed nodes, llm, security,
+                          robustness, ocr, api
+.github/workflows/ci.yml  CI: ruff + pytest on py3.10/3.11/3.12
+Dockerfile                non-root image + healthcheck
+LICENSE                   MIT
 ```
+
+---
+
+## Security
+
+Ingestion takes a *server-side path*, so it is confined to a single directory
+(`CT200_DOCUMENT_ROOT`, default `./data`) via `app/security.py`; anything that
+resolves outside it — `..` traversal, absolute paths, symlinks pointing out — is
+rejected with a 400. Only `.pdf` regular files are accepted. Bad input (missing
+file, non-PDF, duplicate version) returns a clean 4xx, never a 500; unexpected
+errors return a generic 500 and are logged server-side without leaking a
+traceback.
 
 ---
 
@@ -203,8 +233,9 @@ tests/                    parser, versioning, staleness, llm, api
 
 * The CT-200 PDFs carry a real text layer, so the pipeline is **text-layer
   first** with an OCR fallback that activates only for image-only pages. The OCR
-  path is implemented and isolated (`app/parsing/ocr.py`) but is not exercised by
-  these documents — see the approach doc.
+  fallback is isolated (`app/parsing/ocr.py`) and is covered by tests that
+  simulate both the "engine present" and "engine absent" paths — but the real
+  Tesseract path is not exercised against a genuine scanned document here.
 * Change detection is **binary on content hash** (any edit ⇒ stale); a
   `minor`/`major` *magnitude* is reported as an advisory signal, not used in the
   decision.

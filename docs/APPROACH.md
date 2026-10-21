@@ -348,15 +348,70 @@ as body text and produce a single flat node; nothing in the output would say
 
 ## 11. How correctness was validated
 
-* **8 parser unit tests** (`tests/test_parser_irregularities.py`), one per
-  irregularity — including the two the brief names explicitly (duplicate heading
-  ⇒ two distinct nodes with correct parents; out-of-order sections reordered).
-* **5 versioning tests**, including "unchanged node keeps its id" and
-  "version-pinned selection still resolves to v1 text after v2 is ingested".
-* **5 staleness tests**, including the container/table case and idempotency.
-* **6 LLM-validation tests**, including the malformed-output path.
-* **3 API tests** driving the full v1 → v2 → staleness → retrieval flow.
-* Manual cross-check: the v1/v2 text diff was read by hand and the parser's
-  reported changes reconciled against it.
+**50 tests**, all passing (`pytest`), plus a manual cross-check in which the v1/v2
+text diff was read by hand and reconciled against what the parser reported.
 
-All 27 pass with `pytest`.
+| Suite | Tests | Covers |
+|-------|-------|--------|
+| `test_parser_irregularities.py` | 8 | one per irregularity, incl. the two the brief names explicitly |
+| `test_tree_snapshot.py` | 3 | the exact 30-node tree shape (regression guard) + ordering + level-from-number |
+| `test_versioning.py` | 5 | v2 re-ingest summary, unchanged ids, added section, changed flags, version pinning |
+| `test_matching.py` | 2 | renumbered and moved sections keep their identity |
+| `test_removed_nodes.py` | 2 | deleted sections flagged `removed`; staleness → `missing` |
+| `test_staleness.py` | 5 | current → stale, container/table case, retrieval, idempotency |
+| `test_llm_validation.py` | 6 | valid/fenced/prose/wrong-count/malformed-provider/prompt-version |
+| `test_security.py` | 6 | traversal, absolute-out-of-root, directory, non-PDF, empty path |
+| `test_robustness.py` | 8 | duplicate version, missing file, bad inputs → clean 4xx (never 500) |
+| `test_ocr_fallback.py` | 2 | engine-absent warning + engine-present OCR path |
+| `test_api.py` | 3 | full v1 → v2 → staleness → retrieval flow end to end |
+
+---
+
+## 12. Hardening pass (senior review)
+
+After the first working version, I re-reviewed the system adversarially and
+fixed the following. This section exists because the brief rewards exposing
+weaknesses over presenting a clean-looking result.
+
+**Defects found and fixed**
+
+1. **Arbitrary file read (security).** `POST /documents/ingest` took a
+   server-side `path` and opened it with no restriction — `/etc/passwd` (or any
+   PDF on the host) could be read. Now confined to `CT200_DOCUMENT_ROOT` by
+   `app/security.py`; `..`, absolute paths and escaping symlinks are rejected
+   with a 400. This was the most serious finding.
+2. **Unhandled 500s on bad input.** A non-PDF, a directory, or a duplicate
+   version number raised through to a 500. Now: typed `AppError`s with global
+   handlers return clean 4xx (a duplicate version is a 409), and a catch-all
+   handler returns a generic 500 while logging the detail server-side.
+3. **`logical_key` was the stable v1 path, not the current number.** A section
+   renumbered in v2 still displayed its v1 number when browsing. Browse now
+   returns the number *in that version*; `node_id` remains the stable identity
+   used for version pinning.
+4. **Circular-import workaround.** `browse` imported `generation` inside a
+   function to get `node_version_text`. Moved to `app/services/tree.py`.
+5. **N+1 query** when building the version-matching index (one query per node).
+   Now a single query (`_latest_versions`).
+6. **Untyped responses** (`list[dict]` for `/documents`) and an **unused
+   `GenerationListItem` schema**. Both fixed; the generations index no longer
+   returns raw LLM responses.
+7. **No pagination.** `limit` added to search and the generations index.
+8. **No logging, CI, licence or lint config.** Added structured logging, a
+   GitHub Actions workflow (ruff + pytest on 3.10/3.11/3.12), an MIT `LICENSE`,
+   a ruff config, a non-root `Dockerfile` with a healthcheck, and a
+   `.dockerignore`.
+
+**Test gaps closed**
+
+Removal detection, the OCR fallback, and path safety were all *implemented* but
+*untested* — the review found working code with no test behind it, which is how
+regressions hide. All three now have tests, plus a full-tree snapshot test that
+fails loudly if any node's identity or parent changes.
+
+**Verification method**
+
+Every factual claim in this document and the README was re-checked against the
+code and the two PDFs with a script (`font sizes`, `source_order`, the exact set
+of changed/added nodes, the E6 row, the numeric edits). All passed. Two claims
+were found to be *inaccurate* and corrected: the per-file test counts in an
+earlier draft, and the OCR-path wording (it is now tested).
