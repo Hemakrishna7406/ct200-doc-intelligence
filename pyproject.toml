@@ -1,0 +1,14 @@
+[project]
+name = "ct200-doc-intelligence"
+version = "1.0.0"
+description = "Structured, versioned document tree + LLM QA test-case generation for the CardioTrack CT-200 manual"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
