@@ -34,7 +34,7 @@ def main() -> int:
         ).json()["document_id"]
 
         hits = c.get(f"/documents/{doc_id}/search", params={"q": "Error Codes"}).json()
-        n42 = [h for h in hits if h["logical_key"] == "4.2"][0]["node_id"]
+        n42 = next(h for h in hits if h["logical_key"] == "4.2")["node_id"]
 
         sel = c.post("/selections", json={"name": "s", "node_ids": [n42]}).json()
         gen = c.post("/generations", json={"selection_id": sel["id"]}).json()

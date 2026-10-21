@@ -5,8 +5,9 @@ you hash**. Two node snapshots are considered "the same content" only if their
 normalised text matches. Normalisation removes differences that are not
 semantic:
 
-* unicode ligatures and dashes introduced by the PDF font (``ﬁ`` -> ``fi``,
-  ``–``/``—``/``‑`` -> ``-``)
+* unicode ligatures and dash characters introduced by the PDF font (for
+  example the ``fi``/``ff`` ligatures, and the various en/em/non-breaking
+  dashes all normalised to an ASCII hyphen)
 * collapse of all runs of whitespace (including the newlines that appear
   wherever the PDF happened to wrap a line or break a page)
 * trailing/leading whitespace and case

@@ -48,7 +48,7 @@ def main() -> int:
     hits = c.get(f"/documents/{doc_id}/search", params={"q": "Error Codes"}).json()
     for h in hits:
         print(f"   node {h['node_id']}  key={h['logical_key']}  {h['heading']}")
-    n42 = [h for h in hits if h["logical_key"] == "4.2"][0]["node_id"]
+    n42 = next(h for h in hits if h["logical_key"] == "4.2")["node_id"]
 
     n32 = c.get(
         f"/documents/{doc_id}/search", params={"q": "Cuff Inflation"}

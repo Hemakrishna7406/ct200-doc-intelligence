@@ -44,10 +44,10 @@ class Document(Base):
     name: Mapped[str] = mapped_column(String(255), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
-    versions: Mapped[list["DocumentVersion"]] = relationship(
+    versions: Mapped[list[DocumentVersion]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
-    nodes: Mapped[list["Node"]] = relationship(
+    nodes: Mapped[list[Node]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
 
@@ -67,7 +67,7 @@ class DocumentVersion(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     document: Mapped[Document] = relationship(back_populates="versions")
-    node_versions: Mapped[list["NodeVersion"]] = relationship(
+    node_versions: Mapped[list[NodeVersion]] = relationship(
         back_populates="document_version", cascade="all, delete-orphan"
     )
 
@@ -93,7 +93,7 @@ class Node(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     document: Mapped[Document] = relationship(back_populates="nodes")
-    versions: Mapped[list["NodeVersion"]] = relationship(
+    versions: Mapped[list[NodeVersion]] = relationship(
         back_populates="node",
         cascade="all, delete-orphan",
         foreign_keys="NodeVersion.node_id",
@@ -153,7 +153,7 @@ class Selection(Base):
     fingerprint: Mapped[str] = mapped_column(String(64), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
-    items: Mapped[list["SelectionItem"]] = relationship(
+    items: Mapped[list[SelectionItem]] = relationship(
         back_populates="selection", cascade="all, delete-orphan"
     )
 

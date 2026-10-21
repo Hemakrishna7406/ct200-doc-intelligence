@@ -12,8 +12,8 @@ _NUMBER_RE = re.compile(r"\d+(?:\.\d+)?")
 
 def line_diff(old: str, new: str, max_lines: int = 20) -> list[str]:
     """Return a compact unified-diff-ish list of changed lines."""
-    old_lines = [l for l in old.split("\n") if l.strip()]
-    new_lines = [l for l in new.split("\n") if l.strip()]
+    old_lines = [ln for ln in old.split("\n") if ln.strip()]
+    new_lines = [ln for ln in new.split("\n") if ln.strip()]
     out: list[str] = []
     for line in difflib.unified_diff(old_lines, new_lines, lineterm="", n=0):
         if line.startswith(("---", "+++", "@@")):

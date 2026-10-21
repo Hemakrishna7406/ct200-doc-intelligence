@@ -118,7 +118,9 @@ def _merge_body(lines: list[str]) -> str:
     return "\n".join(p for p in out if p)
 
 
-def _classify(lines: list[Line], body_size: float) -> list[tuple[str, Line, str | None, str | None]]:
+def _classify(
+    lines: list[Line], body_size: float
+) -> list[tuple[str, Line, str | None, str | None]]:
     """Return (kind, line, number, title) tuples.
 
     kind ∈ {"heading", "body"}. Heading level is derived later from ``number``.
@@ -153,7 +155,7 @@ def _classify(lines: list[Line], body_size: float) -> list[tuple[str, Line, str 
 
 
 def parse(extraction: ExtractionResult) -> ParseResult:
-    lines = sorted(extraction.lines, key=lambda l: l.order)
+    lines = sorted(extraction.lines, key=lambda line: line.order)
     tables = extraction.tables
     body_size = _detect_body_size(lines)
 
@@ -241,7 +243,7 @@ def parse(extraction: ExtractionResult) -> ParseResult:
                         break
 
             norm_title = normalize_text(htitle).lower()
-            if norm_title in seen_titles and seen_titles[norm_title]:
+            if seen_titles.get(norm_title):
                 anomalies.append(
                     {
                         "code": "duplicate_heading_title",
